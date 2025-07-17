@@ -2,123 +2,141 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Fishbone Diagram Generator</title>
+  <title>Fishbone Diagram Generator (Extended)</title>
   <style>
-    body { font-family: sans-serif; background:#f9f9f9; padding:20px; }
-    .container { max-width:900px; margin:auto; background:#fff; padding:20px;
-                 box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-    input, textarea { width:100%; margin:10px 0; padding:8px; border:1px solid #ccc; border-radius:4px;}
-    button { background:#007acc; color:#fff; border:none; padding:10px 16px;
-             border-radius:4px; cursor:pointer; margin-right:8px;}
-    button:hover { background:#005fa3; }
-    canvas { width:100%; border:1px solid #ddd; margin-top:20px; }
+    body { font-family: Arial, sans-serif; background: #f9f9f9; padding: 20px; }
+    .container { max-width: 960px; margin: auto; background: #fff; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    input, textarea { width: 100%; margin: 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+    button { background: #007bff; color: white; padding: 10px 20px; margin: 10px 5px; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    canvas { width: 100%; border: 1px solid #ccc; margin-top: 20px; }
   </style>
 </head>
 <body>
   <div class="container">
     <h2>Fishbone Diagram Generator</h2>
     <input id="problem" placeholder="Problem Statement">
-    <textarea id="man" placeholder="Man (People) factors, comma-separated"></textarea>
-    <textarea id="machine" placeholder="Machine (Equipment) factors, comma-separated"></textarea>
-    <textarea id="material" placeholder="Material factors, comma-separated"></textarea>
-    <textarea id="method" placeholder="Method (Process) factors, comma-separated"></textarea>
-    <button onclick="draw()">Generate Diagram</button>
+    <textarea id="man" placeholder="Man (comma-separated)"></textarea>
+    <textarea id="machine" placeholder="Machine (comma-separated)"></textarea>
+    <textarea id="material" placeholder="Material (comma-separated)"></textarea>
+    <textarea id="method" placeholder="Method (comma-separated)"></textarea>
+    <textarea id="environment" placeholder="Environment (comma-separated)"></textarea>
+    <textarea id="measurement" placeholder="Measurement (comma-separated)"></textarea>
+    <button onclick="drawFishbone()">Generate Diagram</button>
     <button onclick="downloadPDF()">Download PDF</button>
     <button onclick="window.print()">Print</button>
-    <canvas id="diagramCanvas" width="900" height="600"></canvas>
+    <canvas id="diagramCanvas" width="1200" height="700"></canvas>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
-    function aiCorrect(txt) {
-      return txt.split(',').map(s => {
-        s=s.trim().replace(/_/g,' ').replace(/\s+/g,' ');
-        return s && s.toLowerCase()!=='na'? s[0].toUpperCase()+s.slice(1):null;
-      }).filter(Boolean);
+    function parseInput(id) {
+      return document.getElementById(id).value.split(',').map(s => s.trim()).filter(Boolean);
     }
 
-    function draw() {
-      const head = document.getElementById('problem').value.trim() || 'Problem';
+    function drawFishbone() {
+      const problem = document.getElementById("problem").value.trim() || "Problem";
       const data = {
-        Man: aiCorrect(document.getElementById('man').value),
-        Machine: aiCorrect(document.getElementById('machine').value),
-        Material: aiCorrect(document.getElementById('material').value),
-        Method: aiCorrect(document.getElementById('method').value),
+        Man: parseInput("man"),
+        Machine: parseInput("machine"),
+        Material: parseInput("material"),
+        Method: parseInput("method"),
+        Environment: parseInput("environment"),
+        Measurement: parseInput("measurement")
       };
 
-      const c = document.getElementById('diagramCanvas');
-      const ctx = c.getContext('2d');
-      ctx.clearRect(0,0,c.width,c.height);
-      ctx.font='14px sans-serif'; ctx.textBaseline='middle';
+      const canvas = document.getElementById("diagramCanvas");
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const spineY = c.height/2;
-      ctx.strokeStyle='#333'; ctx.lineWidth=2;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#000";
+      ctx.font = "14px Arial";
+      const spineStartX = 100;
+      const spineEndX = canvas.width - 200;
+      const spineY = canvas.height / 2;
+
       ctx.beginPath();
-      ctx.moveTo(100, spineY);
-      ctx.lineTo(c.width-150, spineY);
+      ctx.moveTo(spineStartX, spineY);
+      ctx.lineTo(spineEndX, spineY);
       ctx.stroke();
 
-      // Problem head
-      ctx.font='bold 16px sans-serif'; ctx.fillStyle='#000';
-      ctx.fillText(head, c.width - 140, spineY);
+      ctx.font = "bold 16px Arial";
+      ctx.fillStyle = "#000";
+      ctx.fillText(problem, spineEndX + 10, spineY);
 
-      const cats = ['Man','Machine','Material','Method'];
-      const colors = ['#d9534f','#5bc0de','#5cb85c','#f0ad4e'];
+      const allBranches = [
+        { key: "Man", angle: -30, color: "#d9534f" },
+        { key: "Machine", angle: -30, color: "#5bc0de" },
+        { key: "Material", angle: 30, color: "#5cb85c" },
+        { key: "Method", angle: 30, color: "#f0ad4e" },
+        { key: "Environment", angle: -30, color: "#9b59b6" },
+        { key: "Measurement", angle: 30, color: "#f39c12" }
+      ];
 
-      cats.forEach((cat,i) => {
-        const arr = data[cat];
-        if(!arr.length) return;
+      const activeBranches = allBranches.filter(branch => data[branch.key].length > 0);
+      const leftX = 150;
+      const stepX = (canvas.width - 400) / (activeBranches.length - 1);
 
-        // calculate branch positions
-        const angle = (i < 2 ? -Math.PI/6 : Math.PI/6);
-        const rootX = 150 + i*((c.width-300)/(cats.length-1));
-        const rootY = spineY;
-        const boneLen = 120;
+      activeBranches.forEach((branch, i) => {
+        const items = data[branch.key];
+        const baseX = leftX + stepX * i;
+        const baseY = spineY;
+        const angle = branch.angle * Math.PI / 180;
+        const dx = 120 * Math.cos(angle);
+        const dy = 120 * Math.sin(angle);
 
-        // draw main bone
-        ctx.strokeStyle=colors[i]; ctx.lineWidth=2;
+        ctx.strokeStyle = branch.color;
+        ctx.fillStyle = branch.color;
         ctx.beginPath();
-        ctx.moveTo(rootX, rootY);
-        const bx = rootX + boneLen*Math.cos(angle);
-        const by = rootY + boneLen*Math.sin(angle);
-        ctx.lineTo(bx, by);
+        ctx.moveTo(baseX, baseY);
+        ctx.lineTo(baseX + dx, baseY + dy);
         ctx.stroke();
 
-        // category label
-        ctx.font='bold 14px sans-serif'; ctx.fillStyle=colors[i];
-        ctx.fillText(cat, bx, by + (i<2 ? -15 : 15));
+        ctx.font = "bold 14px Arial";
+        ctx.fillText(branch.key, baseX + dx + 5, baseY + dy);
 
-        // draw sub-causes
-        ctx.font='13px sans-serif'; ctx.fillStyle='#333';
-        arr.forEach((item,j) => {
-          const offset=25 + j*25;
-          const sx = bx + offset*Math.cos(angle);
-          const sy = by + offset*Math.sin(angle);
+        ctx.font = "12px Arial";
+        ctx.fillStyle = "#000";
+        items.forEach((item, j) => {
+          const offset = (j + 1) * 25;
+          const sx = baseX + dx;
+          const sy = baseY + dy;
+          const ex = sx + offset * Math.cos(angle);
+          const ey = sy + offset * Math.sin(angle);
+
           ctx.beginPath();
-          ctx.moveTo(bx, by);
-          ctx.lineTo(sx, sy);
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(ex, ey);
           ctx.stroke();
 
           ctx.save();
-          ctx.translate(sx, sy);
+          ctx.translate(ex, ey);
           ctx.rotate(angle);
-          ctx.fillText(item, 0, (i<2?-5:5));
+          ctx.fillText(item, 5, 0);
           ctx.restore();
         });
       });
     }
 
     async function downloadPDF() {
-      const img = await html2canvas(document.querySelector('canvas'));
-      const imgData = img.toDataURL('image/png');
+      const canvas = document.getElementById("diagramCanvas");
+      const image = await html2canvas(canvas);
+      const imgData = image.toDataURL("image/png");
       const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF('landscape','pt','a4');
-      const w = pdf.internal.pageSize.getWidth(), h = pdf.internal.pageSize.getHeight();
-      let iw = w-40, ih = iw * img.height/img.width;
-      if(ih > h-40) { ih = h-40; iw = ih * img.width/img.height; }
-      pdf.addImage(imgData,'PNG',(w-iw)/2,(h-ih)/2,iw,ih);
-      pdf.save('Fishbone_Diagram.pdf');
+      const pdf = new jsPDF("landscape", "pt", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const aspectRatio = canvas.width / canvas.height;
+      let width = pageWidth - 40;
+      let height = width / aspectRatio;
+      if (height > pageHeight - 40) {
+        height = pageHeight - 40;
+        width = height * aspectRatio;
+      }
+      pdf.addImage(imgData, "PNG", (pageWidth - width) / 2, (pageHeight - height) / 2, width, height);
+      pdf.save("Fishbone_Diagram.pdf");
     }
   </script>
 </body>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fishbone Diagram Generator with AI</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f7ff;
+      padding: 20px;
+      text-align: center;
+    }
+    h2 {
+      color: #2a4d8f;
+    }
+    .container {
+      background: #fff;
+      padding: 20px;
+      margin: auto;
+      max-width: 800px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px #ccc;
+    }
+    textarea, input[type="text"] {
+      width: 90%;
+      padding: 8px;
+      margin: 10px auto;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #2a4d8f;
+      color: white;
+      padding: 10px 20px;
+      margin: 10px 5px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    canvas {
+      margin-top: 20px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Fishbone Diagram Generator (with AI Input Cleanup)</h2>
+    <input type="text" id="problem" placeholder="Enter Problem Statement">
+
+    <textarea id="man" rows="2" placeholder="Factors under 'Man' (comma-separated)"></textarea>
+    <textarea id="machine" rows="2" placeholder="Factors under 'Machine' (comma-separated)"></textarea>
+    <textarea id="material" rows="2" placeholder="Factors under 'Material' (comma-separated)"></textarea>
+    <textarea id="method" rows="2" placeholder="Factors under 'Method' (comma-separated)"></textarea>
+
+    <button onclick="drawFishbone()">Generate Diagram</button>
+    <button onclick="downloadPDF()">Download PDF</button>
+    <button onclick="window.print()">Print</button>
+
+    <div id="diagramWrapper">
+      <canvas id="diagramCanvas" width="1000" height="600"></canvas>
+    </div>
+  </div>
+
+  <!-- External libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <script>
+    function aiCorrect(input) {
+      return input.split(',')
+        .map(f => {
+          let cleaned = f.trim()
+            .replace(/_/g, ' ')
+            .replace(/\s+/g, ' ')
+            .replace(/^\w/, c => c.toUpperCase());
+          if (cleaned.toLowerCase() === 'na' || cleaned === '') return null;
+          return cleaned;
+        })
+        .filter(Boolean);
+    }
+
+    function drawFishbone() {
+      const problem = document.getElementById("problem").value.trim();
+      const factors = {
+        Man: aiCorrect(document.getElementById("man").value),
+        Machine: aiCorrect(document.getElementById("machine").value),
+        Material: aiCorrect(document.getElementById("material").value),
+        Method: aiCorrect(document.getElementById("method").value),
+      };
+
+      const canvas = document.getElementById("diagramCanvas");
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.font = "14px Arial";
+      ctx.lineWidth = 2;
+
+      const startX = 100, endX = 900, centerY = 300;
+      ctx.beginPath();
+      ctx.moveTo(startX, centerY);
+      ctx.lineTo(endX, centerY);
+      ctx.stroke();
+
+      ctx.fillStyle = "black";
+      ctx.font = "bold 16px Arial";
+      ctx.fillText("Problem: " + problem, endX + 10, centerY + 5);
+
+      const categories = ["Man", "Machine", "Material", "Method"];
+      const positions = [
+        { x: 200, y: centerY - 100, up: true },
+        { x: 400, y: centerY - 100, up: true },
+        { x: 200, y: centerY + 100, up: false },
+        { x: 400, y: centerY + 100, up: false },
+      ];
+
+      categories.forEach((cat, i) => {
+        const pos = positions[i];
+        const items = factors[cat];
+
+        ctx.beginPath();
+        ctx.moveTo(pos.x, centerY);
+        ctx.lineTo(pos.x - 50, pos.y);
+        ctx.stroke();
+
+        ctx.fillText(cat, pos.x - 50, pos.y + (pos.up ? -10 : 15));
+
+        for (let j = 0; j < items.length; j++) {
+          const offsetY = pos.up ? -20 * (j + 1) : 20 * (j + 1);
+          const startX = pos.x - 50;
+          const startY = pos.y;
+          const endX = startX - 70;
+          const endY = startY + offsetY;
+
+          ctx.beginPath();
+          ctx.moveTo(startX, startY);
+          ctx.lineTo(endX, endY);
+          ctx.stroke();
+
+          ctx.fillText(items[j], endX - 5, endY + 5);
+        }
+      });
+    }
+
+    async function downloadPDF() {
+      const canvas = document.getElementById("diagramCanvas");
+      const canvasImage = await html2canvas(canvas);
+      const imgData = canvasImage.toDataURL("image/png");
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF("landscape", "pt", "a4");
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      const aspectRatio = canvas.width / canvas.height;
+      let imgWidth = pageWidth - 40;
+      let imgHeight = imgWidth / aspectRatio;
+
+      if (imgHeight > pageHeight - 40) {
+        imgHeight = pageHeight - 40;
+        imgWidth = imgHeight * aspectRatio;
+      }
+
+      const x = (pageWidth - imgWidth) / 2;
+      const y = (pageHeight - imgHeight) / 2;
+
+      pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+      pdf.save("Fishbone_Diagram.pdf");
+    }
+  </script>
+</body>
+</html>

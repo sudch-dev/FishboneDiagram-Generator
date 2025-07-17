@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Fishbone Diagram Generator (Extended)</title>
+  <title>Fishbone Diagram Generator (Improved Readability)</title>
   <style>
     body { font-family: Arial, sans-serif; background: #f9f9f9; padding: 20px; }
     .container { max-width: 960px; margin: auto; background: #fff; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
@@ -54,7 +54,7 @@
       ctx.strokeStyle = "#000";
       ctx.font = "14px Arial";
       const spineStartX = 100;
-      const spineEndX = canvas.width - 200;
+      const spineEndX = canvas.width - 250;
       const spineY = canvas.height / 2;
 
       ctx.beginPath();
@@ -67,55 +67,55 @@
       ctx.fillText(problem, spineEndX + 10, spineY);
 
       const allBranches = [
-        { key: "Man", angle: -30, color: "#d9534f" },
-        { key: "Machine", angle: -30, color: "#5bc0de" },
-        { key: "Material", angle: 30, color: "#5cb85c" },
-        { key: "Method", angle: 30, color: "#f0ad4e" },
-        { key: "Environment", angle: -30, color: "#9b59b6" },
-        { key: "Measurement", angle: 30, color: "#f39c12" }
+        { key: "Man", direction: "up", color: "#d9534f" },
+        { key: "Machine", direction: "up", color: "#5bc0de" },
+        { key: "Material", direction: "down", color: "#5cb85c" },
+        { key: "Method", direction: "down", color: "#f0ad4e" },
+        { key: "Environment", direction: "up", color: "#9b59b6" },
+        { key: "Measurement", direction: "down", color: "#f39c12" }
       ];
 
       const activeBranches = allBranches.filter(branch => data[branch.key].length > 0);
-      const leftX = 150;
-      const stepX = (canvas.width - 400) / (activeBranches.length - 1);
+      const stepX = (spineEndX - spineStartX - 100) / (activeBranches.length - 1);
+      let posIndex = 0;
 
       activeBranches.forEach((branch, i) => {
         const items = data[branch.key];
-        const baseX = leftX + stepX * i;
+        const baseX = spineStartX + stepX * posIndex++;
         const baseY = spineY;
-        const angle = branch.angle * Math.PI / 180;
-        const dx = 120 * Math.cos(angle);
-        const dy = 120 * Math.sin(angle);
+        const direction = branch.direction === "up" ? -1 : 1;
+
+        // Main branch line
+        const branchLength = 80;
+        const branchAngle = 30 * Math.PI / 180;
+        const dx = branchLength * Math.cos(branchAngle);
+        const dy = direction * branchLength * Math.sin(branchAngle);
+        const endX = baseX + dx;
+        const endY = baseY + dy;
 
         ctx.strokeStyle = branch.color;
         ctx.fillStyle = branch.color;
         ctx.beginPath();
         ctx.moveTo(baseX, baseY);
-        ctx.lineTo(baseX + dx, baseY + dy);
+        ctx.lineTo(endX, endY);
         ctx.stroke();
 
         ctx.font = "bold 14px Arial";
-        ctx.fillText(branch.key, baseX + dx + 5, baseY + dy);
+        ctx.fillText(branch.key, endX + 5, endY);
 
+        // Sub-causes (staggered vertically)
         ctx.font = "12px Arial";
         ctx.fillStyle = "#000";
         items.forEach((item, j) => {
-          const offset = (j + 1) * 25;
-          const sx = baseX + dx;
-          const sy = baseY + dy;
-          const ex = sx + offset * Math.cos(angle);
-          const ey = sy + offset * Math.sin(angle);
+          const subX = endX + 20;
+          const subY = endY + direction * (j + 1) * 25;
 
           ctx.beginPath();
-          ctx.moveTo(sx, sy);
-          ctx.lineTo(ex, ey);
+          ctx.moveTo(endX, endY);
+          ctx.lineTo(subX, subY);
           ctx.stroke();
 
-          ctx.save();
-          ctx.translate(ex, ey);
-          ctx.rotate(angle);
-          ctx.fillText(item, 5, 0);
-          ctx.restore();
+          ctx.fillText(item, subX + 5, subY);
         });
       });
     }

@@ -5,26 +5,26 @@
   <title>Fishbone Diagram Generator</title>
   <style>
     body { font-family: sans-serif; background:#f9f9f9; padding:20px; }
-    .container { background:#fff; max-width:900px; margin:auto; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-    input, textarea { width:100%; margin:10px 0; padding:8px; border:1px solid #ccc; border-radius:4px; }
-    button { background:#007acc; color:#fff; border:none; border-radius:4px; padding:10px 16px; cursor:pointer; margin-right:8px; }
+    .container { max-width:900px; margin:auto; background:#fff; padding:20px;
+                 box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+    input, textarea { width:100%; margin:10px 0; padding:8px; border:1px solid #ccc; border-radius:4px;}
+    button { background:#007acc; color:#fff; border:none; padding:10px 16px;
+             border-radius:4px; cursor:pointer; margin-right:8px;}
     button:hover { background:#005fa3; }
-    #diagramCanvas { width:100%; height:auto; border:1px solid #ddd; margin-top:20px; }
+    canvas { width:100%; border:1px solid #ddd; margin-top:20px; }
   </style>
 </head>
 <body>
   <div class="container">
     <h2>Fishbone Diagram Generator</h2>
     <input id="problem" placeholder="Problem Statement">
-    <textarea id="man" placeholder="Man factors (comma-separated)"></textarea>
-    <textarea id="machine" placeholder="Machine factors (comma-separated)"></textarea>
-    <textarea id="material" placeholder="Material factors (comma-separated)"></textarea>
-    <textarea id="method" placeholder="Method factors (comma-separated)"></textarea>
-
-    <button onclick="draw()">Generate</button>
+    <textarea id="man" placeholder="Man (People) factors, comma-separated"></textarea>
+    <textarea id="machine" placeholder="Machine (Equipment) factors, comma-separated"></textarea>
+    <textarea id="material" placeholder="Material factors, comma-separated"></textarea>
+    <textarea id="method" placeholder="Method (Process) factors, comma-separated"></textarea>
+    <button onclick="draw()">Generate Diagram</button>
     <button onclick="downloadPDF()">Download PDF</button>
     <button onclick="window.print()">Print</button>
-
     <canvas id="diagramCanvas" width="900" height="600"></canvas>
   </div>
 
@@ -33,13 +33,13 @@
   <script>
     function aiCorrect(txt) {
       return txt.split(',').map(s => {
-        s = s.trim().replace(/_/g,' ').replace(/\s+/g,' ');
-        return s && s.toLowerCase() !== 'na' ? s[0].toUpperCase()+s.slice(1) : null;
+        s=s.trim().replace(/_/g,' ').replace(/\s+/g,' ');
+        return s && s.toLowerCase()!=='na'? s[0].toUpperCase()+s.slice(1):null;
       }).filter(Boolean);
     }
 
     function draw() {
-      const p = document.getElementById('problem').value.trim();
+      const head = document.getElementById('problem').value.trim() || 'Problem';
       const data = {
         Man: aiCorrect(document.getElementById('man').value),
         Machine: aiCorrect(document.getElementById('machine').value),
@@ -52,51 +52,49 @@
       ctx.clearRect(0,0,c.width,c.height);
       ctx.font='14px sans-serif'; ctx.textBaseline='middle';
 
-      const spineY = c.height / 2;
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 2;
+      const spineY = c.height/2;
+      ctx.strokeStyle='#333'; ctx.lineWidth=2;
       ctx.beginPath();
       ctx.moveTo(100, spineY);
-      ctx.lineTo(c.width - 150, spineY);
+      ctx.lineTo(c.width-150, spineY);
       ctx.stroke();
 
-      ctx.fillStyle = '#000';
-      ctx.font='bold 16px sans-serif';
-      ctx.fillText(p, c.width - 140, spineY);
+      // Problem head
+      ctx.font='bold 16px sans-serif'; ctx.fillStyle='#000';
+      ctx.fillText(head, c.width - 140, spineY);
 
       const cats = ['Man','Machine','Material','Method'];
       const colors = ['#d9534f','#5bc0de','#5cb85c','#f0ad4e'];
-      const len = cats.length;
 
       cats.forEach((cat,i) => {
         const arr = data[cat];
         if(!arr.length) return;
 
-        const angle = (i<2 ? -Math.PI/6 : Math.PI/6);
-        const rootX = 150 + i*( (c.width - 300) / (len-1) );
+        // calculate branch positions
+        const angle = (i < 2 ? -Math.PI/6 : Math.PI/6);
+        const rootX = 150 + i*((c.width-300)/(cats.length-1));
         const rootY = spineY;
         const boneLen = 120;
 
-        ctx.strokeStyle = colors[i];
-        ctx.fillStyle = colors[i];
-        ctx.lineWidth=2;
-
+        // draw main bone
+        ctx.strokeStyle=colors[i]; ctx.lineWidth=2;
         ctx.beginPath();
         ctx.moveTo(rootX, rootY);
-        const bx = rootX + boneLen * Math.cos(angle);
-        const by = rootY + boneLen * Math.sin(angle);
+        const bx = rootX + boneLen*Math.cos(angle);
+        const by = rootY + boneLen*Math.sin(angle);
         ctx.lineTo(bx, by);
         ctx.stroke();
 
-        ctx.font='bold 14px sans-serif';
-        ctx.fillText(cat, bx, by - (i<2 ? 10 : -10));
+        // category label
+        ctx.font='bold 14px sans-serif'; ctx.fillStyle=colors[i];
+        ctx.fillText(cat, bx, by + (i<2 ? -15 : 15));
 
+        // draw sub-causes
         ctx.font='13px sans-serif'; ctx.fillStyle='#333';
-        arr.forEach((t,j) => {
-          const offset = 20 + j*25;
-          const sx = bx + offset * Math.cos(angle);
-          const sy = by + offset * Math.sin(angle);
-
+        arr.forEach((item,j) => {
+          const offset=25 + j*25;
+          const sx = bx + offset*Math.cos(angle);
+          const sy = by + offset*Math.sin(angle);
           ctx.beginPath();
           ctx.moveTo(bx, by);
           ctx.lineTo(sx, sy);
@@ -105,24 +103,22 @@
           ctx.save();
           ctx.translate(sx, sy);
           ctx.rotate(angle);
-          ctx.fillText(t, 0, (i<2?-5:5));
+          ctx.fillText(item, 0, (i<2?-5:5));
           ctx.restore();
         });
       });
     }
 
     async function downloadPDF() {
-      const canvas = document.getElementById('diagramCanvas');
-      const img = await html2canvas(canvas);
+      const img = await html2canvas(document.querySelector('canvas'));
       const imgData = img.toDataURL('image/png');
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF('landscape','pt','a4');
-      const w=pdf.internal.pageSize.getWidth(), h=pdf.internal.pageSize.getHeight();
-      const ar = canvas.width/canvas.height;
-      let iw = w-40, ih = iw/ar;
-      if(ih>h-40){ ih=h-40; iw=ih*ar; }
+      const w = pdf.internal.pageSize.getWidth(), h = pdf.internal.pageSize.getHeight();
+      let iw = w-40, ih = iw * img.height/img.width;
+      if(ih > h-40) { ih = h-40; iw = ih * img.width/img.height; }
       pdf.addImage(imgData,'PNG',(w-iw)/2,(h-ih)/2,iw,ih);
-      pdf.save('Fishbone.pdf');
+      pdf.save('Fishbone_Diagram.pdf');
     }
   </script>
 </body>

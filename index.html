@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Fishbone Diagram Generator with AI Input Cleanup</title>
+  <title>Fishbone Diagram Generator - Final Enhanced</title>
   <style>
     body { font-family: Arial, sans-serif; background: #f9f9f9; padding: 20px; }
     .container { max-width: 960px; margin: auto; background: #fff; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
@@ -11,11 +11,10 @@
     button:hover { background: #0056b3; }
     canvas { width: 100%; border: 1px solid #ccc; margin-top: 20px; }
   </style>
-  <script src="https://unpkg.com/compromise"></script>
 </head>
 <body>
   <div class="container">
-    <h2>Fishbone Diagram Generator (with AI Cleanup)</h2>
+    <h2>Fishbone Diagram Generator</h2>
     <input id="problem" placeholder="Problem Statement">
     <textarea id="man" placeholder="Man (comma-separated)"></textarea>
     <textarea id="machine" placeholder="Machine (comma-separated)"></textarea>
@@ -23,33 +22,18 @@
     <textarea id="method" placeholder="Method (comma-separated)"></textarea>
     <textarea id="environment" placeholder="Environment (comma-separated)"></textarea>
     <textarea id="measurement" placeholder="Measurement (comma-separated)"></textarea>
-    <button onclick="cleanAndDraw()">AI Clean & Draw</button>
-    <button onclick="downloadPDF()">Download PDF</button>
+    <button onclick="drawFishbone()">Generate Diagram</button>
     <button onclick="window.print()">Print</button>
     <canvas id="diagramCanvas" width="1200" height="700"></canvas>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
   <script>
-    function cleanText(input) {
-      const doc = window.nlp(input);
-      return doc.sentences().out('array').join(', ');
-    }
-
     function parseInput(id) {
-      const raw = document.getElementById(id).value;
-      const cleaned = cleanText(raw);
-      return cleaned.split(',').map(s => s.trim()).filter(Boolean);
-    }
-
-    function cleanAndDraw() {
-      drawFishbone();
+      return document.getElementById(id).value.split(',').map(s => s.trim()).filter(Boolean);
     }
 
     function drawFishbone() {
-      const problem = cleanText(document.getElementById("problem").value.trim()) || "Problem";
+      const problem = document.getElementById("problem").value.trim() || "Problem";
       const data = {
         Man: parseInput("man"),
         Machine: parseInput("machine"),
@@ -63,21 +47,42 @@
       const ctx = canvas.getContext("2d");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "#000";
-      ctx.font = "14px Arial";
-      const spineStartX = 100;
+      const spineStartX = 120;
       const spineEndX = canvas.width - 250;
       const spineY = canvas.height / 2;
 
+      // U-shaped tail
+      ctx.beginPath();
+      ctx.moveTo(spineStartX - 60, spineY - 20);
+      ctx.lineTo(spineStartX - 60, spineY + 20);
+      ctx.arc(spineStartX - 40, spineY + 20, 20, Math.PI, Math.PI * 1.5, true);
+      ctx.lineTo(spineStartX, spineY);
+      ctx.stroke();
+
+      // Draw main spine
       ctx.beginPath();
       ctx.moveTo(spineStartX, spineY);
       ctx.lineTo(spineEndX, spineY);
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 2;
       ctx.stroke();
 
-      ctx.font = "bold 16px Arial";
+      // Draw right-facing arrow box for problem
+      const arrowWidth = 140;
+      const arrowHeight = 40;
+      ctx.beginPath();
+      ctx.moveTo(spineEndX, spineY - arrowHeight / 2);
+      ctx.lineTo(spineEndX + arrowWidth - 20, spineY - arrowHeight / 2);
+      ctx.lineTo(spineEndX + arrowWidth, spineY);
+      ctx.lineTo(spineEndX + arrowWidth - 20, spineY + arrowHeight / 2);
+      ctx.lineTo(spineEndX, spineY + arrowHeight / 2);
+      ctx.closePath();
       ctx.fillStyle = "#000";
-      ctx.fillText(problem, spineEndX + 10, spineY);
+      ctx.fill();
+
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 14px Arial";
+      ctx.fillText(problem, spineEndX + 10, spineY + 5);
 
       const allBranches = [
         { key: "Man", direction: "up", color: "#d9534f" },
@@ -92,7 +97,7 @@
       const stepX = (spineEndX - spineStartX - 100) / (activeBranches.length - 1);
       let posIndex = 0;
 
-      activeBranches.forEach((branch, i) => {
+      activeBranches.forEach(branch => {
         const items = data[branch.key];
         const baseX = spineStartX + stepX * posIndex++;
         const baseY = spineY;
@@ -120,33 +125,20 @@
           const subX = endX + 10;
           const subY = endY + direction * (j + 1) * 25;
 
+          // Horizontal sub-branch
           ctx.beginPath();
           ctx.moveTo(endX, endY);
           ctx.lineTo(subX, subY);
           ctx.stroke();
 
-          ctx.fillText(item, subX + 5, subY + 4);
+          ctx.beginPath();
+          ctx.moveTo(subX, subY);
+          ctx.lineTo(subX + 50, subY);
+          ctx.stroke();
+
+          ctx.fillText(item, subX + 55, subY + 4);
         });
       });
-    }
-
-    async function downloadPDF() {
-      const canvas = document.getElementById("diagramCanvas");
-      const image = await html2canvas(canvas);
-      const imgData = image.toDataURL("image/png");
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF("landscape", "pt", "a4");
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const aspectRatio = canvas.width / canvas.height;
-      let width = pageWidth - 40;
-      let height = width / aspectRatio;
-      if (height > pageHeight - 40) {
-        height = pageHeight - 40;
-        width = height * aspectRatio;
-      }
-      pdf.addImage(imgData, "PNG", (pageWidth - width) / 2, (pageHeight - height) / 2, width, height);
-      pdf.save("Fishbone_Diagram.pdf");
     }
   </script>
 </body>
